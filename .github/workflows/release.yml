@@ -1,0 +1,126 @@
+name: Release
+
+# Builds wheels and an sdist; on a `v*` tag also publishes them to PyPI with
+# Trusted Publishing (pypi.org -> mrve32-snn -> Publishing: this repository,
+# workflow `release.yml`, environment `pypi`). Run manually to build without
+# publishing. The crate is published to crates.io by hand (`cargo publish`).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-version:
+    name: Tag matches crate version
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "$version" != "$tag" ]; then
+            echo "::error::Cargo.toml has version $version, tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+          grep -q "^## \[$tag\]" CHANGELOG.md || { echo "::error::no CHANGELOG.md entry for $tag"; exit 1; }
+
+  wheels:
+    name: Wheel (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { name: linux-x86_64, runner: ubuntu-latest, target: x86_64 }
+          - { name: linux-aarch64, runner: ubuntu-latest, target: aarch64 }
+          # GitHub retired the Intel macos-13 runners: cross-compile on Apple Silicon.
+          - { name: macos-x86_64, runner: macos-14, target: x86_64 }
+          - { name: macos-arm64, runner: macos-14, target: aarch64 }
+          - { name: windows-x64, runner: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v4
+      # abi3: one wheel per platform covers CPython >= 3.10.
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          manylinux: auto
+          args: --release --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform.name }}
+          path: dist/*.whl
+
+  sdist:
+    name: Sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  test-wheels:
+    name: Test wheels (${{ matrix.os }}, ${{ matrix.python }})
+    needs: wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      # mrve32-snn from the built wheels only; mrve32 and NumPy from PyPI.
+      - name: Install
+        shell: bash
+        run: |
+          pip install numpy pytest mrve32
+          pip install --no-index --find-links dist mrve32-snn
+      # Run from a temp dir so the tests import the installed package.
+      - name: Run tests
+        shell: bash
+        run: |
+          cp -r tests/python "$RUNNER_TEMP/tests"
+          cd "$RUNNER_TEMP"
+          python -m pytest -q -p no:cacheprovider tests
+
+  publish:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check-version, wheels, sdist, test-wheels]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mrve32-snn
+    permissions:
+      id-token: write # Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

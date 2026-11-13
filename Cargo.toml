@@ -1,11 +1,11 @@
 [package]
 name = "mrve32-snn"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "Apache-2.0"
 description = "SNN layer accelerator device module for the MRVE32 RISC-V emulator"
 rust-version = "1.88"
-repository = "https://github.com/vladimirmitnovitskiy/MRVE32"
+repository = "https://github.com/vladimirmitnovitskiy/mrve32-snn"
 readme = "README.md"
 keywords = ["risc-v", "snn", "neuromorphic", "emulator", "accelerator"]
 categories = ["emulators", "simulation", "science"]
@@ -15,7 +15,7 @@ exclude = ["/python", "/tests/python", "/pyproject.toml"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mrve32 = { path = "../..", version = "0.1.1" }
+mrve32 = "0.1.1"
 pyo3 = { version = "0.30", features = ["extension-module", "abi3-py310"], optional = true }
 
 [features]
