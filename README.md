@@ -1,5 +1,7 @@
 [![PyPI](https://img.shields.io/pypi/v/mrve32-snn.svg)](https://pypi.org/project/mrve32-snn/)
 [![Python](https://img.shields.io/pypi/pyversions/mrve32-snn.svg)](https://pypi.org/project/mrve32-snn/)
+[![Crates.io](https://img.shields.io/crates/v/mrve32-snn.svg)](https://crates.io/crates/mrve32-snn)
+[![docs.rs](https://img.shields.io/docsrs/mrve32-snn)](https://docs.rs/mrve32-snn)
 [![CI](https://github.com/vladimirmitnovitskiy/mrve32-snn/actions/workflows/ci.yml/badge.svg)](https://github.com/vladimirmitnovitskiy/mrve32-snn/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/vladimirmitnovitskiy/mrve32-snn/blob/main/LICENSE)
 
